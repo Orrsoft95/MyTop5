@@ -136,3 +136,48 @@ def build_content_matrix(df: pd.DataFrame):
     }
 
     return feature_matrix, anime_index_map
+
+def load_ratings(path: str, anime_ids: set) -> pd.DataFrame:
+    """
+    Load users-score-2023.csv, apply data quality filters, and return
+    a cleaned, long-format ratings dataframe w/ columns:
+    user_id, anime_id, rating
+
+    FILTERS APPLIED
+    ---------------
+    - Only keep anime that are present in our cleaned anime dataframe
+    - Drop users with < MIN_RATINGS_PER_USER
+    - Drop anime with fewer than MIN_RATINGS_PER_ANIME
+    """
+
+    print("Loading user ratings (this may take a moment)...")
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+
+    print(f"Raw ratings loaded: {len(df):,} rows")
+
+    #Only keep ratings for anime that exist in our cleaned dataset
+    df = df[df["anime_id"].isin(anime_ids)]
+    print(f"# of records after anime filtering: {len(df):,} rows")
+
+    #Drop ratings of 0 (0 = "not rated" in MAL)
+    df = df[df["rating"] > 0]
+    print(f"# of records after removing unscored entries: {len(df):,} rows")
+
+    #Filter out users w/ too few ratings
+    user_counts = df["user_id"].value_counts()
+    valid_users = user_counts[user_counts >= MIN_RATINGS_PER_USER].index
+    df = df[df["user_id"].isin(valid_users)]
+    print(f"# of records after USER filter (>={MIN_RATINGS_PER_USER} ratings): {len(df):,} rows")
+
+    #Filter out anime with too few ratings
+    anime_counts = df["anime_id"].value_counts()
+    valid_anime = anime_counts[anime_counts >= MIN_RATINGS_PER_ANIME].index
+    df = df[df["anime_id"].isin(valid_anime)]
+    print(f"# of records after ANIME filter (>={MIN_RATINGS_PER_ANIME} ratings): {len(df):,} rows")
+
+    #Ensure we've only kept necessary columns!
+    df = df[["user_id", "anime_id", "rating"]].reset_index(drop=True)
+
+    print(f"Unique USERS: {df["user_id"].nunique():,}")
+    print(f"Unique ANIME: {df["anime_id"].nunique():,}")
