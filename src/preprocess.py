@@ -26,6 +26,7 @@ from scipy.sparse import hstack, csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import MultiLabelBinarizer
 from surprise import SVD, Dataset, Reader
+from surprise.model_selection import GridSearchCV
 
 #Random state to be used for preprocessing
 RAND_STATE = 42
@@ -183,3 +184,51 @@ def load_ratings(path: str, anime_ids: set) -> pd.DataFrame:
     print(f"Unique ANIME: {df['anime_id'].nunique():,}")
 
     return df
+
+def train_svd(ratings_df: pd.DataFrame) -> SVD:
+    """
+    Trains a surprise SVD model on the (filtered) ratings dataframe.
+    Uses GridSearchCV to tune n_factors, n_epochs, lr_all, and reg_all!
+    Best parameters are selected by lowest root mean square err via 3-fold cross-validation.
+    Rating scale is inferred from the data, but is 1-10 in the case of MAL).
+    """
+
+    print("Training our SVD model...")
+    min_r = ratings_df["rating"].min()
+    max_r = ratings_df["rating"].max()
+
+    reader = Reader(rating_scale=(min_r, max_r))
+    data = Dataset.load_from_df(
+        ratings_df[["user_id", "anime_id", "rating"]],
+        reader
+    )
+
+    #parameters to test for best fit:
+    param_grid = {
+        "n_factors": [50, 100, 150],
+        "n_epochs": [20, 30, 50],
+        "lr_all": [0.005, 0.01],
+        "reg_all": [0.02, 0.05]
+    }
+
+    #Hyperparameter tuning: model will be fit a total of *108* times
+    gs = GridSearchCV(
+        SVD,
+        param_grid,
+        measures=["rmse"],
+        cv=3,
+        refit=True,
+        joblib_verbose=1,
+        n_jobs=1 #use all available CPU cores
+    )
+
+    gs.fit(data)
+
+    best_params = gs.best_params["rmse"]
+    best_rmse = gs.best_score["rmse"]
+    print(f"BEST RMSE: {best_rmse:.4f}")
+    print(f"BEST PARAMETERS: {best_params}")
+
+    #Since refit was set to True in GridSearchCV, gs.best_estimator is already fitted on our full dataset
+    svd = gs.best_estimator["rmse"]
+    return svd
