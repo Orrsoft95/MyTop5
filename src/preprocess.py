@@ -83,3 +83,56 @@ def load_anime(path: str) -> pd.DataFrame:
 
     return df
 
+def build_content_matrix(df: pd.DataFrame):
+    """
+    Constructs a combined sparse feature matrix from:
+        -TF-IDF vectors of synopsis text
+        -Multi-hot encoded genre tags
+
+    Returns
+    ---------
+    feature_matrix  : scipy sparse matrix in shape (n_anime, n_features)
+    anime_index     : dict {anime_id, row_index}
+    """
+
+    print("Building TF-IDF synopsis matrix...")
+
+    tfidf = TfidfVectorizer(
+        max_features= TFIDF_MAX_FEATURES,
+        stop_words="english",
+        ngram_range=(1, 2),  #Include unigrams & bigrams
+        min_df=2, #Ignore terms that appear less than twice
+    )
+
+    #fit the vectorizer to our synopses
+    tfidf_matrix = tfidf.fit_transform(df["synopsis"])
+    print(f"TF-IDF matrix shape: {tfidf_matrix.shape}")
+
+    print("Now building multi-hot genre matrix...")
+
+    """
+    Genres are stored in anime-filtered.csv as comma-separated strings;
+    split these strings into lists for processing
+    """ 
+    genre_lists = df["genres"].apply(
+        lambda x: sorted(
+            [g.strip() for g in x.split(",") if g.strip()]
+            )
+    )
+
+    #fit our multi-label binarizer to our genre_lists & create a sparse row matrix out of it 
+    mlb = MultiLabelBinarizer()
+    genre_matrix = csr_matrix(mlb.fit_transform(genre_lists))
+    print(f"Genre matrix shape: {genre_matrix.shape}")
+    print(f"Unique genres found: {len(mlb.classes_)}")
+
+    #HORIZONTALLY stack both matrices into one combined feature matrix!
+    feature_matrix = hstack([tfidf_matrix, genre_matrix], format="csr")
+    print(f"Combined feature matrix shape: {feature_matrix.shape}")
+
+    #Map anime_id > row index for fast lookup at inference time
+    anime_index_map = {
+        anime_id: idx for idx, anime_id in enumerate(df["anime_id"])
+    }
+
+    return feature_matrix, anime_index_map
