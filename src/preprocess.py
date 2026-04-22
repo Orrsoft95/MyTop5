@@ -26,7 +26,7 @@ from scipy.sparse import hstack, csr_matrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import MultiLabelBinarizer
 from surprise import SVD, Dataset, Reader
-from surprise.model_selection import GridSearchCV
+from surprise.model_selection import RandomizedSearchCV
 
 #Random state to be used for preprocessing
 RAND_STATE = 42
@@ -188,7 +188,7 @@ def load_ratings(path: str, anime_ids: set) -> pd.DataFrame:
 def train_svd(ratings_df: pd.DataFrame) -> SVD:
     """
     Trains a surprise SVD model on the (filtered) ratings dataframe.
-    Uses GridSearchCV to tune n_factors, n_epochs, lr_all, and reg_all!
+    Uses RandomizedSearchCV to efficiently tune hyperparameters.
     Best parameters are selected by lowest root mean square err via 3-fold cross-validation.
     Rating scale is inferred from the data, but is 1-10 in the case of MAL).
     """
@@ -204,35 +204,38 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     )
 
     #parameters to test for best fit:
-    param_grid = {
+    param_distributions = {
         "n_factors": [50, 100, 150],
-        "n_epochs": [20, 30],
-        "lr_all": [0.005, 0.01],
-        "reg_all": [0.02, 0.05]
+        "n_epochs": [20, 30, 50],
+        "lr_all": [0.005, 0.01, 0.15],
+        "reg_all": [0.02, 0.05, 0.75]
     }
 
 
     print("Hyperparameter tuning now...")
-    #Hyperparameter tuning: model will be fit a total of *72* times
-    gs = GridSearchCV(
+    #Hyperparameter tuning:
+    rs = RandomizedSearchCV(
         SVD,
-        param_grid,
+        param_distributions,
         measures=["rmse"],
         cv=3,
+        n_iter=25, #Only try 25 random combinations instead of all 81
         refit=True,
+        random_state=RAND_STATE
         joblib_verbose=1,
-        n_jobs=-1 #use all available CPU cores
+        n_jobs=-2 #Use all but 1 CPU core
     )
 
-    gs.fit(data)
+    print("Fitting the model to our data...")
+    rs.fit(data)
 
-    best_params = gs.best_params["rmse"]
-    best_rmse = gs.best_score["rmse"]
+    best_params = rs.best_params["rmse"]
+    best_rmse = rs.best_score["rmse"]
     print(f"BEST RMSE: {best_rmse:.4f}")
     print(f"BEST PARAMETERS: {best_params}")
 
     #Since refit was set to True in GridSearchCV, gs.best_estimator is already fitted on our full dataset
-    svd = gs.best_estimator["rmse"]
+    svd = rs.best_estimator["rmse"]
     return svd
 
 
