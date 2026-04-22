@@ -295,11 +295,11 @@ def main():
     anime_titles = sorted(anime_df["name"].dropna().unique().tolist())
 
     #Step 6 - save all necessary outputs to pickle files!
-    pickle_save(anime_df, "anime_metadata.pk1")
-    pickle_save(feature_matrix, "content_feature_matrix.pk1")
-    pickle_save(anime_index_map, "anime_index_map.pk1")
-    pickle_save(svd_model, "svd_model.pk1")
-    pickle_save(anime_titles, "anime_titles.pk1")
+    pickle_save(anime_df, "anime_metadata.pkl")
+    pickle_save(feature_matrix, "content_feature_matrix.pkl")
+    pickle_save(anime_index_map, "anime_index_map.pkl")
+    pickle_save(svd_model, "svd_model.pkl")
+    pickle_save(anime_titles, "anime_titles.pkl")
 
     print("\nPreprocessing complete! All outputs have been saved to models/.")
     print(f"Anime in catalog: {len(anime_df):,}")
