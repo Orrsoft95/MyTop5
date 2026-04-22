@@ -206,12 +206,14 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     #parameters to test for best fit:
     param_grid = {
         "n_factors": [50, 100, 150],
-        "n_epochs": [20, 30, 50],
+        "n_epochs": [20, 30],
         "lr_all": [0.005, 0.01],
         "reg_all": [0.02, 0.05]
     }
 
-    #Hyperparameter tuning: model will be fit a total of *108* times
+
+    print("Hyperparameter tuning now...")
+    #Hyperparameter tuning: model will be fit a total of *72* times
     gs = GridSearchCV(
         SVD,
         param_grid,
@@ -219,7 +221,7 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
         cv=3,
         refit=True,
         joblib_verbose=1,
-        n_jobs=1 #use all available CPU cores
+        n_jobs=-1 #use all available CPU cores
     )
 
     gs.fit(data)
@@ -232,3 +234,49 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     #Since refit was set to True in GridSearchCV, gs.best_estimator is already fitted on our full dataset
     svd = gs.best_estimator["rmse"]
     return svd
+
+
+def pickle_save(obj, filename:str):
+    """
+    Serialize obj to models/[filename]
+    """
+    path = os.path.join(MODELS_DIR, filename)
+    print("Saving {obj} to pickle file...")
+    with open(path, "wb") as file:
+        pickle.dump(obj, file)
+
+    print(f"Successfully saved model to models/{filename}")
+    
+#MAIN PIPELINE!
+def main():
+    os.makedirs(MODELS_DIR, exist_ok=True)
+
+    #Step 1 - load anime metadata
+    anime_df = load_anime(ANIME_CSV)
+
+    #Step 2 - build content feature matrix
+    feature_matrix, anime_index_map = build_content_matrix(anime_df)
+
+    #Step 3 - Load user ratings
+    ratings_df = load_ratings(USERS_CSV, anime_ids=set(anime_df["anime_id"]))
+
+    #Step 4 - Train SVD model on ratings dataframe
+    svd_model = train_svd(ratings_df)
+
+    #Step 5 - create a sorted title list for streamlit app dropdown
+    anime_titles = sorted(anime_df["name"].dropna().unique().tolist())
+
+    #Step 6 - save all necessary outputs to pickle files!
+    pickle_save(anime_df, "anime_metadata.pk1")
+    pickle_save(feature_matrix, "content_feature_matrix.pk1")
+    pickle_save(anime_index_map, "anime_index_map.pk1")
+    pickle_save(svd_model, "svd_model.pk1")
+    pickle_save(anime_titles, "anime_titles.pk1")
+
+    print("\nPreprocessing complete! All outputs have been saved to models/.")
+    print(f"Anime in catalog: {len(anime_df):,}")
+    print(f"Ratings retained: {len(ratings_df):,}")
+    print(f"Feature matrix: {feature_matrix.shape}")
+
+if __name__ == "__main__":
+    main()
