@@ -179,5 +179,7 @@ def load_ratings(path: str, anime_ids: set) -> pd.DataFrame:
     #Ensure we've only kept necessary columns!
     df = df[["user_id", "anime_id", "rating"]].reset_index(drop=True)
 
-    print(f"Unique USERS: {df["user_id"].nunique():,}")
-    print(f"Unique ANIME: {df["anime_id"].nunique():,}")
+    print(f"Unique USERS: {df['user_id'].nunique():,}")
+    print(f"Unique ANIME: {df['anime_id'].nunique():,}")
+
+    return df
