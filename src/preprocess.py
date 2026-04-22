@@ -260,7 +260,11 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     )
     svd.fit(trainset)
     print("SVD model trained on full dataset.")
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 8d4da8a85fef386da53da0a1de98322669f84b62
     return svd
 
 
