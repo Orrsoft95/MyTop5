@@ -1,0 +1,27 @@
+#Sensitive credentials - do not store publicly!
+.streamlit/secrets.toml
+
+#Data (csv) files (large size, download manually from Kaggle)
+data/*.csv
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Serialized models (reproduce by running preprocess.py!)
+models/*.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Conda/Python packaging
+*.egg-info
+dist/
+build/
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
