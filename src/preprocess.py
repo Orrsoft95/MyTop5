@@ -190,8 +190,6 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     Trains a surprise SVD model on the (filtered) ratings dataframe.
     Uses a 25% sample for hyperparameter tuning via RandomizedSearchCV,
     then retrains the best model on the full dataset
-    Uses a 25% sample for hyperparameter tuning via RandomizedSearchCV,
-    then retrains the best model on the full dataset
     Best parameters are selected by lowest root mean square err via 3-fold cross-validation.
     Rating scale is inferred from the data, but is 1-10 in the case of MAL).
     """
@@ -200,11 +198,6 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     min_r = ratings_df["rating"].min()
     max_r = ratings_df["rating"].max()
 
-    #Sample 25% of ratings for hyperparameter tuning
-    ratings_sample = ratings_df.sample(
-        frac=0.25,
-        random_state=RAND_STATE
-    )
     #Sample 25% of ratings for hyperparameter tuning
     ratings_sample = ratings_df.sample(
         frac=0.25,
@@ -234,8 +227,6 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
         param_distributions,
         measures=["rmse"],
         cv=3,
-        n_iter=20, #Only try 20 random combinations instead of all 81
-        refit=False, #We'll retrain manually on the full dataset later
         n_iter=20, #Only try 20 random combinations instead of all 81
         refit=False, #We'll retrain manually on the full dataset later
         random_state=RAND_STATE,
@@ -269,7 +260,7 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     )
     svd.fit(trainset)
     print("SVD model trained on full dataset.")
-
+    
     return svd
 
 
@@ -304,11 +295,11 @@ def main():
     anime_titles = sorted(anime_df["name"].dropna().unique().tolist())
 
     #Step 6 - save all necessary outputs to pickle files!
-    pickle_save(anime_df, "anime_metadata.pkl")
-    pickle_save(feature_matrix, "content_feature_matrix.pkl")
-    pickle_save(anime_index_map, "anime_index_map.pkl")
-    pickle_save(svd_model, "svd_model.pkl")
-    pickle_save(anime_titles, "anime_titles.pkl")
+    pickle_save(anime_df, "anime_metadata.pk1")
+    pickle_save(feature_matrix, "content_feature_matrix.pk1")
+    pickle_save(anime_index_map, "anime_index_map.pk1")
+    pickle_save(svd_model, "svd_model.pk1")
+    pickle_save(anime_titles, "anime_titles.pk1")
 
     print("\nPreprocessing complete! All outputs have been saved to models/.")
     print(f"Anime in catalog: {len(anime_df):,}")
