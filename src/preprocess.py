@@ -215,10 +215,6 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     #Fit Hyperparameters on our sample
     sample_data = Dataset.load_from_df(
         ratings_sample[["user_id", "anime_id", "rating"]],
-    
-    #Fit Hyperparameters on our sample
-    sample_data = Dataset.load_from_df(
-        ratings_sample[["user_id", "anime_id", "rating"]],
         reader
     )
 
@@ -244,7 +240,6 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
         refit=False, #We'll retrain manually on the full dataset later
         random_state=RAND_STATE,
         joblib_verbose=1,
-        n_jobs=4 #limit CPU usage to 4 cores
         n_jobs=4 #limit CPU usage to 4 cores
     )
 
