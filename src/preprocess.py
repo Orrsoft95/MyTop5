@@ -188,7 +188,8 @@ def load_ratings(path: str, anime_ids: set) -> pd.DataFrame:
 def train_svd(ratings_df: pd.DataFrame) -> SVD:
     """
     Trains a surprise SVD model on the (filtered) ratings dataframe.
-    Uses RandomizedSearchCV to efficiently tune hyperparameters.
+    Uses a 25% sample for hyperparameter tuning via RandomizedSearchCV,
+    then retrains the best model on the full dataset
     Best parameters are selected by lowest root mean square err via 3-fold cross-validation.
     Rating scale is inferred from the data, but is 1-10 in the case of MAL).
     """
@@ -197,9 +198,16 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     min_r = ratings_df["rating"].min()
     max_r = ratings_df["rating"].max()
 
+    #Sample 25% of ratings for hyperparameter tuning
+    ratings_sample = ratings_df.sample(
+        frac=0.25,
+        random_state=RAND_STATE
+    )
     reader = Reader(rating_scale=(min_r, max_r))
-    data = Dataset.load_from_df(
-        ratings_df[["user_id", "anime_id", "rating"]],
+    
+    #Fit Hyperparameters on our sample
+    sample_data = Dataset.load_from_df(
+        ratings_sample[["user_id", "anime_id", "rating"]],
         reader
     )
 
@@ -219,23 +227,40 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
         param_distributions,
         measures=["rmse"],
         cv=3,
-        n_iter=25, #Only try 25 random combinations instead of all 81
-        refit=True,
+        n_iter=20, #Only try 20 random combinations instead of all 81
+        refit=False, #We'll retrain manually on the full dataset later
         random_state=RAND_STATE,
         joblib_verbose=1,
-        n_jobs=-2 #Use all but 1 CPU core
+        n_jobs=4 #limit CPU usage to 4 cores
     )
 
-    print("Fitting the model to our data...")
-    rs.fit(data)
+    print("Fitting the model to our sample data...")
+    rs.fit(sample_data)
 
     best_params = rs.best_params["rmse"]
     best_rmse = rs.best_score["rmse"]
     print(f"BEST RMSE: {best_rmse:.4f}")
     print(f"BEST PARAMETERS: {best_params}")
 
-    #Since refit was set to True in GridSearchCV, gs.best_estimator is already fitted on our full dataset
-    svd = rs.best_estimator["rmse"]
+    #Retrain the best model on our full dataset
+    print(f"Retraining on full dataset, {len(ratings_df):,} ratings...")
+    full_data = Dataset.load_from_df(
+        ratings_df[["user_id", "anime_id", "rating"]],
+        reader
+    )
+    trainset = full_data.build_full_trainset()
+
+    svd = SVD(
+        n_factors = best_params["n_factors"],
+        n_epochs = best_params["n_epochs"],
+        lr_all = best_params["lr_all"],
+        reg_all = best_params["reg_all"],
+        random_state = RAND_STATE,
+        verbose=True
+    )
+    svd.fit(trainset)
+    print("SVD model trained on full dataset.")
+
     return svd
 
 
@@ -270,11 +295,11 @@ def main():
     anime_titles = sorted(anime_df["name"].dropna().unique().tolist())
 
     #Step 6 - save all necessary outputs to pickle files!
-    pickle_save(anime_df, "anime_metadata.pk1")
-    pickle_save(feature_matrix, "content_feature_matrix.pk1")
-    pickle_save(anime_index_map, "anime_index_map.pk1")
-    pickle_save(svd_model, "svd_model.pk1")
-    pickle_save(anime_titles, "anime_titles.pk1")
+    pickle_save(anime_df, "anime_metadata.pkl")
+    pickle_save(feature_matrix, "content_feature_matrix.pkl")
+    pickle_save(anime_index_map, "anime_index_map.pkl")
+    pickle_save(svd_model, "svd_model.pkl")
+    pickle_save(anime_titles, "anime_titles.pkl")
 
     print("\nPreprocessing complete! All outputs have been saved to models/.")
     print(f"Anime in catalog: {len(anime_df):,}")
