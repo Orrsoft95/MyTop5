@@ -190,6 +190,8 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     Trains a surprise SVD model on the (filtered) ratings dataframe.
     Uses a 25% sample for hyperparameter tuning via RandomizedSearchCV,
     then retrains the best model on the full dataset
+    Uses a 25% sample for hyperparameter tuning via RandomizedSearchCV,
+    then retrains the best model on the full dataset
     Best parameters are selected by lowest root mean square err via 3-fold cross-validation.
     Rating scale is inferred from the data, but is 1-10 in the case of MAL).
     """
@@ -203,7 +205,16 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
         frac=0.25,
         random_state=RAND_STATE
     )
+    #Sample 25% of ratings for hyperparameter tuning
+    ratings_sample = ratings_df.sample(
+        frac=0.25,
+        random_state=RAND_STATE
+    )
     reader = Reader(rating_scale=(min_r, max_r))
+    
+    #Fit Hyperparameters on our sample
+    sample_data = Dataset.load_from_df(
+        ratings_sample[["user_id", "anime_id", "rating"]],
     
     #Fit Hyperparameters on our sample
     sample_data = Dataset.load_from_df(
@@ -229,8 +240,11 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
         cv=3,
         n_iter=20, #Only try 20 random combinations instead of all 81
         refit=False, #We'll retrain manually on the full dataset later
+        n_iter=20, #Only try 20 random combinations instead of all 81
+        refit=False, #We'll retrain manually on the full dataset later
         random_state=RAND_STATE,
         joblib_verbose=1,
+        n_jobs=4 #limit CPU usage to 4 cores
         n_jobs=4 #limit CPU usage to 4 cores
     )
 
@@ -260,11 +274,7 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
     )
     svd.fit(trainset)
     print("SVD model trained on full dataset.")
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 8d4da8a85fef386da53da0a1de98322669f84b62
     return svd
 
 
