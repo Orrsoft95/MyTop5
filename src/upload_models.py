@@ -16,7 +16,7 @@ Requirements
 """
 
 import os
-from huggingface_hub import HfApi, login
+from huggingface_hub import login, create_repo, upload_file
 
 #Config
 HF_USERNAME = "Orrsoft95"
@@ -30,11 +30,11 @@ MODELS_DIR = os.path.join(ROOT_DIR, "models")
 
 #Files to upload - MUST match outputs of preprocess.py
 MODEL_FILES = [
-    "anime_metadata.pk1",
-    "content_feature_matrix.pk1",
-    "anime_index_map.pk1",
-    "svd_model.pk1",
-    "anime_titles.pk1"
+    "anime_metadata.pkl",
+    "content_feature_matrix.pkl",
+    "anime_index_map.pkl",
+    "svd_model.pkl",
+    "anime_titles.pkl"
 ]
 
 #Upload pickle files to Hugging Face
@@ -48,10 +48,8 @@ def main():
         )
     login(token=hf_token)
 
-    api = HfApi
-
     #Create repo if it doesn't exist yet
-    api.create_repo(
+    create_repo(
         repo_id=HF_REPO_ID,
         repo_type="model",
         exist_ok=True, #Don't throw an error if repo already exists
@@ -71,7 +69,7 @@ def main():
         file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
         print(f"Uploading {filename} ({file_size_mb}:.1f MB)...")
 
-        api.upload_file(
+        upload_file(
             path_or_fileobj=local_path,
             path_in_repo=filename,
             repo_id=HF_REPO_ID,
