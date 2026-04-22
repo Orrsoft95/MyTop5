@@ -221,7 +221,7 @@ def train_svd(ratings_df: pd.DataFrame) -> SVD:
         cv=3,
         n_iter=25, #Only try 25 random combinations instead of all 81
         refit=True,
-        random_state=RAND_STATE
+        random_state=RAND_STATE,
         joblib_verbose=1,
         n_jobs=-2 #Use all but 1 CPU core
     )
