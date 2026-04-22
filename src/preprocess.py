@@ -61,6 +61,9 @@ def load_anime(path: str) -> pd.DataFrame:
 
     #Normalize column names! trim, lowercase text, replace spaces w/ underscores
     df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+    
+    #"synopsis" is misspelled as "sypnopsis" in anime-filtered.csv; correct that
+    df.rename(columns={"sypnopsis": "synopsis"}, inplace=True)
 
     """
     Drop rows missing the fields needed for content-based filtering:
@@ -79,3 +82,4 @@ def load_anime(path: str) -> pd.DataFrame:
     print(f"{len(df):,} anime present AFTER cleaning")
 
     return df
+
