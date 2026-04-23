@@ -184,7 +184,7 @@ def get_collab_recommendations(
     """
 
     if not selected_titles:
-        raise ValueError("selected_titles must contain at least one title.")
+        raise ValueError("Selected_titles must contain at least one title.")
     
     #Step 1 - resolve titles to their anime_ids
     selected_ids = _titles_to_ids(selected_titles, anime_df)

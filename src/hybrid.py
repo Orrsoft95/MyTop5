@@ -72,3 +72,142 @@ def _normalize_scores(df: pd.DataFrame, column:str) -> pd.DataFrame:
     scaler = MinMaxScaler()
     df[column] = scaler.fit_transform(values)
     return df
+
+#Public API
+
+def get_hybrid_recommendations(
+    selected_titles     : list[str],
+    anime_df            : pd.DataFrame,
+    feature_matrix      : csr_matrix,
+    anime_index_map     : dict,
+    svd_model           : Surprise.SVD,
+    top_n               : int = 10,
+    content_weight      : float = 0.6,
+    collab_weight       : float = 0.4
+) -> pd.DataFrame:
+    """
+    Generate HYBRID anime recommendations by fusing content-based and collaborative filtering scores.
+
+    Pipeline
+    --------
+    1. Get top CANDIDATE_POOL content-based candidates (cosine similarity)
+    2. Get top CANDIDATE_POOL collaborative candidates (SVD pseudo-user)
+    3. Merge candidates on anime_id (INNER JOIN - keep titles that were scored by BOTH)
+    4. Normalize both score columns to [0,1]
+    5. Compute weighted hybrid score
+    6. Sort by hybrid score and return top_n results with metadata
+
+    Parameters
+    ----------
+    selected_titles : list of anime title strings (from Streamlit dropdown)
+    anime_df        : cleaned anime metadata DataFrame
+    feature_matrix  : sparse TF-IDF + genre feature matrix
+    anime_index_map : dict mapping anime_id to matrix row index
+    svd_model       : trained Surprise SVD model
+    top_n           : number of final recommendations to return (default 10)
+    content_weight  : weight applied to normalized content score (default 0.6)
+    collab_weight   : weight applied to normalized collab score (default 0.4)
+
+    Returns
+    -------
+    pd.DataFrame with columns:
+        anime_id        : int
+        name            : str
+        content_score   : float (normalized 0-1)
+        collab_score    : float (normalized 0-1)
+        hybrid_score    : float (weighted blend, 0-1)
+        genres          : str
+        synopsis        : str
+    Sorted DESCENDING by hybrid_score, top_n rows.
+    """
+
+    if not selected_titles:
+        raise ValueError("Selected_titles must contain at least one title.")
+    
+    if not np.isclose(content_weight + collab_weight, 1):
+        raise ValueError(
+            f"ERROR: content_weight ({content_weight} + collab_weight ({collab_weight}) must sum to 1.0!)"
+        )
+    
+    #Step 1 - pull content-based candidates
+    print("Generating content-based candidates...")
+    content_df = get_content_recommendations(
+        selected_titles=selected_titles,
+        anime_df=anime_df,
+        feature_matrix=feature_matrix,
+        anime_index_map=anime_index_map,
+        top_n=CANDIDATE_POOL
+    )
+
+    #Step 2 - pull collaborative candidates
+    print("Now generating collaborative filtering candidates...")
+    collab_df = get_collab_recommendations(
+        selected_titles=selected_titles,
+        anime_df=anime_df,
+        svd_model=svd_model,
+        top_n=CANDIDATE_POOL
+    )
+
+    #Step 3 - Merge (INNER JOIN) candidate pools on anime_id
+    merged_df = pd.merge(
+        content_df[["anime_id", "content_score"]],
+        collab_df[["anime_id", "collab_score"]],
+        on="anime_id",
+        how="inner"
+    )
+
+    #Make Sure the merge isn't empty
+    if merged_df.empty:
+        raise ValueError(
+            "ERROR: No anime appeared in both content AND collaborative candidate pools. "
+            "Try increasing CANDIDATE_POOL or selecting different input titles."
+        )
+    
+    print(f"Both candidate pools have been generated! # of candidates in the merged pool: {len(merged_df)}")
+
+    #Step 4 - normalize BOTH scores to [0,1]
+    merged_df = _normalize_scores(merged_df, "content_score")
+    merged_df = _normalize_scores(merged_df, "collab_score")
+
+    #Step 5 - compute the weighted hybrid score
+    merged_df["hybrid_score"] = (
+        content_weight * merged_df["content_score"]
+        + collab_weight * merged_df["collab_score"]
+    )
+
+    #Step 6 - sort by hybrid score & trim to top_n results
+    merged_df = (
+        merged_df
+        .sort_values("hybrid_score", ascending=False)
+        .head(top_n)
+        .reset_index(drop=True)
+    )
+
+    #Step 7 - enrich results w/ metadata from anime_df
+    metadata_cols = ["anime_id", "name", "genres", "synopsis"]
+    available_cols = [x for x in metadata_cols if x in anime_df.columns]
+    metadata = anime_df[available_cols]
+
+    results = pd.merge(
+        merged_df,
+        metadata,
+        on="anime_id",
+        how="left"
+    )
+
+    #Set the final column order
+    col_order = [
+        "anime_id",
+        "name",
+        "content_score",
+        "collab_score",
+        "hybrid_score",
+        "genres",
+        "synopsis"
+    ]
+
+    col_order = [x for x in col_order if x in results.columns]
+    results = results[col_order]
+
+    print(f"All set! Returning the top {len(results)} hybrid recommendations now.")
+    return results
