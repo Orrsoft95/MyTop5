@@ -80,7 +80,7 @@ def get_hybrid_recommendations(
     anime_df            : pd.DataFrame,
     feature_matrix      : csr_matrix,
     anime_index_map     : dict,
-    svd_model           : Surprise.SVD,
+    svd_model           : SVD,
     top_n               : int = 10,
     content_weight      : float = 0.6,
     collab_weight       : float = 0.4
