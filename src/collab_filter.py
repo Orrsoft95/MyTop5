@@ -94,4 +94,63 @@ def _build_pseudo_user_vector(
         )
     
     return np.mean(item_factors, axis=0)
+
+def _predict_ratings(
+        pseudo_user_vector: np.ndarray,
+        svd_model: SVD,
+        exclude_ids: set,
+        anime_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Predict ratings for ALL catalog anime using the pseudo-user vector.
+
+    For each anime in the catalog, the predicted rating is computed as:
+        rating = global_mean + user_bias + item_bias + (pseudo_user * item_factor)
+
+    This mirrors Surprise's internal SVD prediction formula, but substitutes
+    the pseudo-user vector in place of a trained user factor vector.
+
+    Parameters
+    ----------
+    pseudo_user_vector  : np.ndarray of shape (n_factors,)
+    svd_model           : trained Surprise SVD model
+    exclude_ids         : set of anime_ids to EXCLUDE (user's input titles)
+    anime_df            : cleaned anime metadata DataFrame
+
+    Returns
+    -------
+    pd.DataFrame with columns:
+        anime_id, name_collab_score
+    """
+    trainset = svd_model.trainset
+    global_mean = trainset.global_mean
+    results = []
+
+    for anime_id, name in zip(anime_df["anime_id"], anime_df["name"]):
+        #Make sure we skip the input titles!
+        if anime_id in exclude_ids:
+            continue
+        
+        try:
+            inner_id = trainset.to_inner_iid(str(anime_id))
+            item_bias = svd_model.bi[inner_id]
+            item_factor = svd_model.qi[inner_id]
+        except ValueError:
+            #If id not in trainset, just silently skip it
+            continue
+
+        #Create the SVD prediction formula (since this is a pseudo-user, there's no user bias)
+        
+        predicted_rating = (
+            global_mean
+            + item_bias
+            + np.dot(pseudo_user_vector, item_factor)
+        )
+
+        results.append({
+            "anime_id": anime_id,
+            "name": name,
+            "collab_score": predicted_rating
+        })
     
+    return pd.DataFrame(results)
