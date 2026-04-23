@@ -104,3 +104,65 @@ def _build_centroid(anime_ids: list[int], feature_matrix: csr_matrix, anime_inde
 
     #Return centroid as an array instead of numpy matrix
     return np.asarray(centroid)
+
+def get_content_recommendations(
+        selected_titles: list[str],
+        anime_df: pd.DataFrame,
+        feature_matrix: csr_matrix,
+        anime_index_map: dict,
+        top_n: int=50,
+) -> pd.DataFrame:
+    """
+    Return the top_n most content-similar anime for a given list of titles.
+
+    The function computes a centroid vector from the user's selected titles & ranks all other anime
+    by cosine similarity to that centroid.
+    Selected titles are excluded from the results.
+
+    Parameters
+    ------------
+    selected_titles     : list of anime title strings (to be selected via dropdown)
+    anime_df            : cleaned anime metadata dataframe
+    feature_matrix      : sparse TF-IDF + genre feature matrix
+    anime_index_map     : dict mapping anime_id to matrix row index
+    top_n               : number of candidates to return (default 50, wil be narrowed further by hybrid.py)
+
+    Returns
+    ------------
+    pd.DataFrame with columns:
+        anime_id        : int
+        name            : str
+        content_score   : float (cosine similarity, 0.0-1.0)
+    Sorted DESCENDING by content_score.
+    """
+
+    if not selected_titles:
+        raise ValueError("Selected titles must contain at least one title.")
+    
+    #Step 1 - resolve titles to anime_ids
+    selected_ids = _titles_to_ids(selected_titles, anime_df)
+    if not selected_ids:
+        raise ValueError(
+            "None of the provided titles could be matched in the catalog."
+        )
+    
+    #Step 2 - build centroid query vector
+    centroid = _build_centroid(selected_ids, feature_matrix, anime_index_map)
+
+    #Step 3 - compute cosine similarity between centroid & all anime
+    similarity_scores = cosine_similarity(centroid, feature_matrix).flatten()
+
+    #Step 4 - build results dataframe
+    results = pd.DataFrame({
+        "anime_id": anime_df["anime_id"].values,
+        "name": anime_df["name"].values,
+        "content_score": similarity_scores
+    })
+
+    #Step 5 - exclude the user's input titles from results!
+    results = results[~results["anime_id"].isin(selected_ids)]
+
+    #Step 6 - sort by similarity DESC & return top_n candidates
+    results = results.sort_values("content_score", ascending=False).head(top_n).reset_index(drop=True)
+
+    return results
