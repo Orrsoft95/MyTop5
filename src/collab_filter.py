@@ -59,3 +59,39 @@ def _get_item_factor(svd_model: SVD, anime_id: int) -> np.ndarray | None:
         print(f"WARNING: anime_id {anime_id} not in SVD trainset - skip ping.")
         return None
     
+def _build_pseudo_user_vector(
+        selected_ids: list[int],
+        svd_model: SVD,
+) -> np.ndarray:
+    """
+    Build a pseudo-user latent factor vector by averaging the item factor vectors
+    of the user's selected anime.
+
+    This approximates where the user would sit in the latent factor space learned
+    by SVD, enabling rating prediction without any training history.
+
+    Parameters
+    ------------
+    selected_ids    : list of anime_id integers
+    svd_model       : trained Surprise SVD model
+
+    Returns
+    -------
+    pseudo_user_vector  : np.ndarray of shape (n_factors,)
+    """
+
+    item_factors = []
+    for anime_id in selected_ids:
+        factor = _get_item_factor(svd_model, anime_id)
+        if factor is not None:
+            item_factors.append(factor)
+
+    if not item_factors:
+        raise ValueError(
+            "None of the selected anime were found in the SVD trainset."
+            "This may mean they were filtered out during preprocessing due to insufficient ratings."
+            "Try selecting more popular titles."
+        )
+    
+    return np.mean(item_factors, axis=0)
+    
