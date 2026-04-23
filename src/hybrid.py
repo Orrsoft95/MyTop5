@@ -157,8 +157,8 @@ def get_hybrid_recommendations(
     )
 
     #OUTER Joins keep anime even if they are Missing one of the 2 scores, impute these missing scores with that column's average.
-    merged_df["content_score"].fillna(merged_df["content_score"].mean(), inplace=True)
-    merged_df["collab_score"].fillna(merged_df["collab_score"].mean(), inplace=True)
+    merged_df["content_score"] = merged_df["content_score"].fillna(merged_df["content_score"].mean())
+    merged_df["collab_score"] = merged_df["collab_score"].fillna(merged_df["collab_score"].mean())
 
     #Make Sure the merge isn't empty
     if merged_df.empty:
