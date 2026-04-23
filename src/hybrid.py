@@ -43,3 +43,32 @@ COLLAB_WEIGHT = 0.4
 #Larger pool = more candidates for the hybrid merger to re-rank!
 CANDIDATE_POOL = 100
 
+#Internal helper functions!
+
+def _normalize_scores(df: pd.DataFrame, column:str) -> pd.DataFrame:
+    """
+    Apply Min-Max normalization to a score column, ensuring values are set to [0,1].
+
+    If all values are identical (no variance), return 0.5 for ALL rows instead of NaN to avoid
+    breaking the hybrid model.
+
+    Parameters
+    ----------
+    df      : DataFrame containing the score column
+    column  : name of the column to normalize (in place)
+
+    Returns
+    -------
+    DataFrame with the specified column normalized to [0,1]
+    """
+
+    values = df[column].values.reshape(-1, 1)
+
+    if values.max() == values.min():
+        #This is our 0-variance edge case; set all scores to 0.5
+        df[column] = 0.5
+        return df
+    
+    scaler = MinMaxScaler()
+    df[column] = scaler.fit_transform(values)
+    return df
