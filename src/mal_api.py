@@ -41,6 +41,7 @@ Fields to request from MAL API, per anime
 
 MAL_FIELDS = "mean,main_picture,genres"
 TIMEOUT_LENGTH = 15
+REQUEST_DELAY = 0.25
 
 #Internal helper functions!
 
@@ -105,3 +106,79 @@ def _parse_anime_details(anime_id: int, data:dict) -> dict:
         "mal_url": f"{MAL_ANIME_URL}/{anime_id}"
     }
 
+# Public API
+
+def enrich_recommendations(
+        results_df: pd.DataFrame,
+        client_id: str,
+) -> pd.DataFrame:
+    """
+    Enrich a recommendations dataframe with live data from the MAL API.
+
+    Makes one API call per recommended anime to fetch cover art, current community score, and MAL page URL.
+    Results are joined back into the input dataframe by anime_id.
+
+    A short delay (REQUEST_DELAY seconds) is applied between calls to respect MAL rate limits.
+
+    Parameters
+    ----------
+    results_df  : DataFrame output from hybrid.get_hybrid_recommendations()
+                    MUST contain an anime_id column.
+    client_id   : MAL API client ID from st.secrets["mal"]["client_id"]
+
+    Returns
+    -------
+    pd.DataFrame - original resuilts_df with 3 additional columns:
+        mal_score       : float | None (current MAL community score)
+        cover_image_url : str | None (URL for the title's cover art image)
+        mal_url         : str (Link to the title's MAL page)
+    """
+
+    if results_df.empty:
+        return results_df
+    
+    if "anime_id" not in results_df.columns:
+        raise ValueError("ERROR: results_df must contain an 'anime_id' column.")
+    
+    if not client_id:
+        raise ValueError(
+            "MAL client ID is missing! "
+            "Check that .streamlit/secrets.toml contains [mal] client_id."
+        )
+    
+    enriched_rows = []
+    total = len(results_df)
+
+    for i, anime_id in enumerate(results_df["anime_id"], start=1):
+        print(f"Fetching MAL data {i}/{total} - anime_id: {anime_id}...")
+
+        data = _get_anime_details(int(anime_id), client_id)
+
+        if data:
+            enriched_rows.append(
+                _parse_anime_details(int(anime_id), data)
+                )
+        else:
+            #If the API call failed, append placeholder row so that merge still works.
+            enriched_rows.append({
+                "anime_id": int(anime_id),
+                "mal_score": None,
+                "cover_image_url": None,
+                "mal_url": f"{MAL_ANIME_URL}/{anime_id}"
+            })
+
+        #Add a sleep period to respect MAL API rate limits
+        if i < total:
+            time.sleep(REQUEST_DELAY)
+        
+    enriched_df = pd.DataFrame(enriched_rows)
+
+    #join enrichment data back into results
+    results_enriched = pd.merge(
+        results_df,
+        enriched_df,
+        on="anime_id",
+        how="left"
+    )
+
+    return results_enriched
