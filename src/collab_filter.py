@@ -52,7 +52,7 @@ def _get_item_factor(svd_model: SVD, anime_id: int) -> np.ndarray | None:
     """
 
     try:
-        inner_id = svd_model.trainset.to_inner_iid(str(anime_id))
+        inner_id = svd_model.trainset.to_inner_iid(int(anime_id))
         return svd_model.qi[inner_id]
     except ValueError:
         #anime_id was not seen during SVD training (filtered out)
@@ -132,7 +132,7 @@ def _predict_ratings(
             continue
         
         try:
-            inner_id = trainset.to_inner_iid(str(anime_id))
+            inner_id = trainset.to_inner_iid(int(anime_id))
             item_bias = svd_model.bi[inner_id]
             item_factor = svd_model.qi[inner_id]
         except ValueError:
