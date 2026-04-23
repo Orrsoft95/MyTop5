@@ -73,4 +73,35 @@ def _get_anime_details(anime_id: int, client_id: str) -> dict | None:
         print(f"Request failed for anime_id {anime_id}: {e}")
         return None
 
+def _parse_anime_details(anime_id: int, data:dict) -> dict:
+    """
+    Extract & flatten the fields we need from the MAL API response.
+
+    Handle missing fields by substituting sensible defaults so that a single
+    failed field doesn't break the entire result card.
+
+    Parameters
+    ----------
+    anime_id    : MAL anime_id integer
+    data        : raw API response dict from _get_anime_details
+
+    Returns
+    ---------
+    dict with keys: anime_id, mal_score, cover_image_url, mal_url
+    """
+
+    #Prefer the med size cover art, use large if needed, then none if both are missing
+    main_picture = data.get("main_picture", {})
+    cover_image_url = (
+        main_picture.get("medium")
+        or main_picture.get("large")
+        or None
+    )
+
+    return {
+        "anime_id": anime_id,
+        "mal_score": data.get("mean", None),
+        "cover_image_url": cover_image_url,
+        "mal_url": f"{MAL_ANIME_URL}/{anime_id}"
+    }
 
