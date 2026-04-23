@@ -154,3 +154,68 @@ def _predict_ratings(
         })
     
     return pd.DataFrame(results)
+
+# Public API
+def get_collab_recommendations(
+        selected_titles: list[str],
+        anime_df: pd.DataFrame,
+        svd_model: SVD,
+        top_n: int=50,
+) -> pd.DataFrame:
+    """
+    Return the top_n highest predicted-rating anime for a given list of titles
+    using collaborative filtering via a pseudo-user SVD approach.
+
+    Parameters
+    ----------
+    selected_titles : List of anime title strings (from Streamlit dropdown)
+    anime_df        : cleaned anime metadata DataFrame
+    svd_model       : Trained Surprise SVD model
+    top_n           : Number of candidates to return (default 50, will be narrowed further
+                        by hybrid.py)
+    
+    Returns
+    -------
+    pd.DataFrame with columns:
+        anime_id        : int
+        name            : str
+        collab_score    : float (predicted rating on the model's rating scale)
+    Sorted DESCENDING by collab_score.
+    """
+
+    if not selected_titles:
+        raise ValueError("selected_titles must contain at least one title.")
+    
+    #Step 1 - resolve titles to their anime_ids
+    selected_ids = _titles_to_ids(selected_titles, anime_df)
+    if not selected_ids:
+        raise ValueError(
+                        "None of the provided titles could be matched in the catalog."
+        )
+    
+    #Step 2 - build pseudo-user latent factor vector
+    pseudo_user_vector = _build_pseudo_user_vector(selected_ids, svd_model)
+
+    #Step 3 - Predict ratings across the full catalog
+    results = _predict_ratings(
+        pseudo_user_vector=pseudo_user_vector,
+        svd_model=svd_model,
+        exclude_ids=set(selected_ids),
+        anime_df=anime_df,
+    )
+
+    if results.empty:
+        raise ValueError(
+            "No collaborative filtering predictions could be generated."
+            "Check that the SVD model was trained successfully."
+        )
+    
+    #Step 4 - sort by predicted rating DESC & return top_n candidates
+    results = (
+        results
+        .sort_values("collab_score", ascending=False)
+        .head(top_n)
+        .reset_index(drop=True)
+    )
+
+    return results
