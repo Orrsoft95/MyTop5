@@ -36,12 +36,12 @@ from src.content_filter import get_content_recommendations
 from src.collab_filter import get_collab_recommendations
 
 #Set default weights
-CONTENT_WEIGHT = 0.6
-COLLAB_WEIGHT = 0.4
+CONTENT_WEIGHT = 0.55
+COLLAB_WEIGHT = 0.45
 
 #Set the # of candidates to request from each filter pre-merge
 #Larger pool = more candidates for the hybrid merger to re-rank!
-CANDIDATE_POOL = 100
+CANDIDATE_POOL = 300
 
 #Internal helper functions!
 
@@ -82,8 +82,8 @@ def get_hybrid_recommendations(
     anime_index_map     : dict,
     svd_model           : SVD,
     top_n               : int = 10,
-    content_weight      : float = 0.6,
-    collab_weight       : float = 0.4
+    content_weight      : float = CONTENT_WEIGHT,
+    collab_weight       : float = COLLAB_WEIGHT
 ) -> pd.DataFrame:
     """
     Generate HYBRID anime recommendations by fusing content-based and collaborative filtering scores.
@@ -92,7 +92,7 @@ def get_hybrid_recommendations(
     --------
     1. Get top CANDIDATE_POOL content-based candidates (cosine similarity)
     2. Get top CANDIDATE_POOL collaborative candidates (SVD pseudo-user)
-    3. Merge candidates on anime_id (INNER JOIN - keep titles that were scored by BOTH)
+    3. Merge candidates on anime_id (OUTER JOIN - keep titles, even if they were only scored by one of the systems.)
     4. Normalize both score columns to [0,1]
     5. Compute weighted hybrid score
     6. Sort by hybrid score and return top_n results with metadata
@@ -148,13 +148,17 @@ def get_hybrid_recommendations(
         top_n=CANDIDATE_POOL
     )
 
-    #Step 3 - Merge (INNER JOIN) candidate pools on anime_id
+    #Step 3 - Merge (OUTER JOIN) candidate pools on anime_id
     merged_df = pd.merge(
         content_df[["anime_id", "content_score"]],
         collab_df[["anime_id", "collab_score"]],
         on="anime_id",
-        how="inner"
+        how="outer"
     )
+
+    #OUTER Joins keep anime even if they are Missing one of the 2 scores, impute these missing scores with that column's average.
+    merged_df["content_score"].fillna(merged_df["content_score"].mean(), inplace=True)
+    merged_df["collab_score"].fillna(merged_df["collab_score"].mean(), inplace=True)
 
     #Make Sure the merge isn't empty
     if merged_df.empty:
