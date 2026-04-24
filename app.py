@@ -241,3 +241,111 @@ def render_card(row: pd.Series) -> None:
         unsafe_allow_html=True
     )
     st.progress(float(hybrid_score))
+
+
+### MAIN APP ###
+def main():
+    #Load models
+    anime_df, feature_matrix, anime_index_map, svd_model, anime_titles = load_models()
+
+    #Store titles in session state for the searchbox helper
+    st.session_state.anime_titles = anime_titles
+
+    #Header
+    st.markdown("# 🏯 MyTop5")
+    st.markdown(
+        "Select your **top 5 favorite anime** and receive 10 personalized "
+        "recommendations, powered by a hybrid content + collaborative filtering engine.\n"
+        "**Note** - anime rekeased after 2023 may not be present in data set."
+    )
+    st.divider()
+
+    #Anime selection!
+    st.markdown("### 🔍 Select your top 5 anime")
+    st.caption("Search by title - type at least 2 characters to see suggestions.")
+
+    selected_titles = []
+    for i in range(1, 6):
+        title = st_searchbox(
+            search_function=search_anime,
+            placeholder=f"Anime #{i}...",
+            key=f"searchbox_{i}",
+            label=f"Pick #{i}",
+        )
+        if title:
+            selected_titles.append(title)
+    
+    #Title validation
+    if selected_titles:
+        unique_titles = list(dict.fromkeys(selected_titles)) #Preserve entry order + deduplicate
+        if len(unique_titles) < len(selected_titles):
+            st.warning("You've selected the same anime more than once! Duplicates will be ignored.")
+            selected_titles = unique_titles
+    
+    #"Get Recommendations" button
+    st.divider()
+    ready = len(selected_titles) == 5
+    if not ready and selected_titles:
+        st.info(f"{len(selected_titles)}/5 anime selected - pick {5 - len(selected_titles)} more to continue.")
+
+    if st.button(
+        "✨ Get Recommendations",
+        disabled=not ready,
+        use_container_width=True,
+        type="primary"
+    ):
+        with st.spinner("Generating your recommendations..."):
+            try:
+                #Step 1 - hybrid recommendations
+                results = get_hybrid_recommendations(
+                    selected_titles=selected_titles,
+                    anime_df=anime_df,
+                    feature_matrix=feature_matrix,
+                    anime_index_map=anime_index_map,
+                    svd_model=svd_model,
+                    top_n=10
+                )
+                
+                #Step 2 - enrich w/ MAL API data
+                client_id = st.secrets["mal"]["client_id"]
+                with st.spinner("Fetching cover art & scores from MyAnimeList..."):
+                    results = enrich_recommendations(results, client_id)
+                
+                #Step 3 - display results!
+                st.markdown(
+                    '<div class="section-header">💡 Your recommendations</div>',
+                    unsafe_allow_html=True
+                )
+
+                st.caption(
+                    f"Based on: {', '.join(selected_titles)}"
+                )
+
+                #Create our 2-column result grid
+                rows = [results.iloc[i:i+2] for i in range(0, len(results), 2)]
+                for row_pair in rows:
+                    cols = st.columns(2, gap="medium")
+                    for col, (_, anime_row) in zip(cols, row_pair.iterrows()):
+                        with col:
+                            with st.container:
+                                st.markdown('<div class="anime-card">', unsafe_allow_html=True)
+                                render_card(anime_row)
+                                st.markdown('</div>',unsafe_allow_html=True)
+
+            except ValueError as e:
+                st.error(f"Something went wrong while generating your recommendations: {e}")
+            except Exception as e:
+                st.error(f"An unexpected error occurred: {e}")
+                raise
+    
+    #Footer
+    st.divider()
+    st.caption(
+        "Data sourced from the "
+        "[Anime Dataset 2023](https://www.kaggle.com/datasets/dbdmobile/myanimelist-dataset) "
+        "on Kaggle. Live metadata pulled from the "
+        "[MyAnimeList API](https://myanimelist.net/apiconfig/references/api/v2)."
+    )
+
+if __name__ == "__main__":
+    main()
