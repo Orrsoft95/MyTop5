@@ -45,7 +45,8 @@ MyTop5/
 │   └── secrets.toml            	# API credentials (not tracked by git)
 ├── app.py                      	# Streamlit application entry point
 ├── environment.yml             	# Conda environment definition
-├── LICENSE							# Copy of the MIT software license 
+├── LICENSE							# Copy of the MIT software license
+├── MODEL_CARD.md 
 └── README.md
 ```
 ---
