@@ -136,18 +136,28 @@ def load_models():
     repo_id = st.secrets["huggingface"]["repo_id"]
 
     model_files = [
+        "anime_titles.pkl", #Smallest file - Try loading first
+        "anime_index_map.pkl",
         "anime_metadata.pkl",
         "content_feature_matrix.pkl",
-        "anime_index_map.pkl",
-        "svd_model.pkl",
-        "anime_titles.pkl"
+        "svd_model.pkl"
     ]
 
     models = {}
     for filename in model_files:
-        path = hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model")
-        with open(path, "rb") as file:
-            models[filename] = pickle.load(file)
+        st.write(f"Downloading {filename}...") #Track which file is being worked on
+        try:
+            path = hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model")
+
+            st.write(f"Loading {filename}...")
+            with open(path, "rb") as file:
+                models[filename] = pickle.load(file)
+
+            st.write(f"✓ {filename} loaded successfully.")
+        
+        #Catch any errors in loading the models
+        except Exception as e:
+            st.error(f"Model loading failed on {filename}: {e}")
 
     return(
         models["anime_metadata.pkl"],
