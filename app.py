@@ -30,6 +30,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from huggingface_hub import hf_hub_download
+import joblib
 
 from src.hybrid import get_hybrid_recommendations
 from src.mal_api import enrich_recommendations
@@ -133,37 +134,61 @@ def load_models():
     Cached for the session - only runs once per deployment instance.
     """
 
+    placeholder = st.empty() #Use this to clear out each log message once a new one is ready
+
     repo_id = st.secrets["huggingface"]["repo_id"]
 
-    model_files = [
+    pkl_files = [
         "anime_titles.pkl", #Smallest file - Try loading first
         "anime_index_map.pkl",
         "anime_metadata.pkl",
-        "content_feature_matrix.pkl",
-        "svd_model.joblib"
+        "content_feature_matrix.pkl"
     ]
 
     models = {}
-    for filename in model_files:
-        st.write(f"Downloading {filename}...") #Track which file is being worked on
+    #pkl files will be loaded using pickle.load
+    for filename in pkl_files:
+        placeholder.write(f"Downloading {filename}...") #Track which file is being worked on
         try:
             path = hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model")
 
-            st.write(f"Loading {filename}...")
+            placeholder.write(f"Loading {filename}...")
             with open(path, "rb") as file:
                 models[filename] = pickle.load(file)
 
-            st.write(f"✓ {filename} loaded successfully.")
+            placeholder.write(f"✓ {filename} loaded successfully.")
         
         #Catch any errors in loading the models
         except Exception as e:
             st.error(f"Model loading failed on {filename}: {e}")
 
+    #while svd_model.joblib must be loaded using joblib.load instead
+    joblib_files = ["svd_model.joblib"]
+
+    for filename in joblib_files:
+        placeholder.write(f"Downloading {filename}...") #Track which file is being worked on
+        try:
+            path = hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model")
+
+            placeholder.write(f"Loading {filename}...")
+            with open(path, "rb") as file:
+                models[filename] = joblib.load(file)
+            
+            placeholder.write(f"✓ {filename} loaded successfully.")
+
+        #Catch any errors in loading the joblib file(s)
+        except Exception as e:
+            st.error(f"Model loading failed on {filename}: {e}")
+
+    
+    #Clear all status messages once loading is complete
+    placeholder.empty()
+
     return(
         models["anime_metadata.pkl"],
         models["content_feature_matrix.pkl"],
         models["anime_index_map.pkl"],
-        models["svd_model.pkl"],
+        models["svd_model.joblib"],
         models["anime_titles.pkl"]
     )
 
