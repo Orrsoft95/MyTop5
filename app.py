@@ -129,4 +129,47 @@ st.markdown("""
 @st.cache_resource(show_spinner="Loading models from Hugging Face...")
 
 def load_models():
-    pass
+    """
+    Download & deserialize all model files from Huggingface hub.
+    Cached for the session - only runs once per deployment instance.
+    """
+
+    repo_id = st.secrets["huggingface"]["repo_id"]
+
+    model_files = [
+        "anime_metadata.pkl",
+        "content_feature_matrix.pkl",
+        "anime_index_map.pkl",
+        "svd_model.pkl",
+        "anime_titles.pkl"
+    ]
+
+    models = {}
+    for filename in model_files:
+        path = hf_hub_download(repo_id=repo_id, filename=filename, repo_type="model")
+        with open(path, "rb") as file:
+            models[filename] = pickle.load(file)
+
+    return(
+        models["anime_metadata.pkl"],
+        models["content_feature_matrix.pkl"],
+        models["anime_index_map.pkl"],
+        models["svd_model.pkl"],
+        models["anime_titles.pkl"]
+    )
+
+def search_anime(query: str) -> list[str]:
+    """
+    Return anime titles matching the search query for the
+    autocomplete dropdown. Called on every keystroke by st_searchbox.
+    """
+
+    if not query or len(query) < 2:
+        return []
+    query_lower = query.strip().lower()
+
+    #Cap at 10 suggestions for performance
+    return [
+        title for title in st.session_state.anime_titles
+        if query_lower in title.lower()
+    ][:10]
