@@ -30,7 +30,6 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from huggingface_hub import hf_hub_download
-from streamlit_searchbox import st_searchbox
 
 from src.hybrid import get_hybrid_recommendations
 from src.mal_api import enrich_recommendations
@@ -266,11 +265,12 @@ def main():
 
     selected_titles = []
     for i in range(1, 6):
-        title = st_searchbox(
-            search_function=search_anime,
-            placeholder=f"Anime #{i}...",
-            key=f"searchbox_{i}",
+        title = st.selectbox(
             label=f"Pick #{i}",
+            options=[""] + anime_titles,
+            key=f"select_{i}",
+            index=0,
+            placeholder=f"Anime #{i}...",
         )
         if title:
             selected_titles.append(title)
@@ -294,9 +294,10 @@ def main():
         use_container_width=True,
         type="primary"
     ):
-        with st.spinner("Generating your recommendations..."):
+        with st.status("Generating your recommendations...", expanded=True) as status:
             try:
                 #Step 1 - hybrid recommendations
+                status.update(label="Running hybrid recommendation engine...")
                 results = get_hybrid_recommendations(
                     selected_titles=selected_titles,
                     anime_df=anime_df,
@@ -307,10 +308,13 @@ def main():
                 )
                 
                 #Step 2 - enrich w/ MAL API data
+                status.update(label="Fetching cover art & scores from MyAnimeList...")
                 client_id = st.secrets["mal"]["client_id"]
-                with st.spinner("Fetching cover art & scores from MyAnimeList..."):
-                    results = enrich_recommendations(results, client_id)
                 
+                results = enrich_recommendations(results, client_id)
+                
+                status.update(label="Done!", state="complete",expanded=False)
+
                 #Step 3 - display results!
                 st.markdown(
                     '<div class="section-header">💡 Your recommendations</div>',
@@ -333,8 +337,10 @@ def main():
                                 st.markdown('</div>',unsafe_allow_html=True)
 
             except ValueError as e:
+                status.update(label="Something went wrong.", state="error", expanded=False)
                 st.error(f"Something went wrong while generating your recommendations: {e}")
             except Exception as e:
+                status.update(label="An unexpected error occurred.", state="error", expanded=False)
                 st.error(f"An unexpected error occurred: {e}")
                 raise
     
