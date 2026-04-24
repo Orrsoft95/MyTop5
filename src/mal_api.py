@@ -37,6 +37,7 @@ Fields to request from MAL API, per anime
     mean            : current community score
     main_picture    : cover art (med and large URLs)
     genres          : genre tags directly from MAL
+    num_episodes    : number of episodes in the series
 """
 
 MAL_FIELDS = "mean,main_picture,genres,num_episodes"
