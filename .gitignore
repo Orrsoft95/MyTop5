@@ -3,6 +3,7 @@
 
 #Data (csv) files (large size, download manually from Kaggle)
 data/*.csv
+temp.py
 
 # Python bytecode
 __pycache__/
@@ -11,6 +12,7 @@ __pycache__/
 
 # Serialized models (reproduce by running preprocess.py!)
 models/*.pkl
+models/*.joblib
 
 # Jupyter
 .ipynb_checkpoints/

@@ -33,7 +33,7 @@ MODEL_FILES = [
     "anime_metadata.pkl",
     "content_feature_matrix.pkl",
     "anime_index_map.pkl",
-    "svd_model.pkl",
+    "svd_model.joblib",
     "anime_titles.pkl"
 ]
 

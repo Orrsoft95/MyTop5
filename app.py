@@ -140,7 +140,7 @@ def load_models():
         "anime_index_map.pkl",
         "anime_metadata.pkl",
         "content_feature_matrix.pkl",
-        "svd_model.pkl"
+        "svd_model.joblib"
     ]
 
     models = {}
