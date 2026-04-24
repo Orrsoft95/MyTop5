@@ -206,7 +206,7 @@ def render_card(row: pd.Series) -> None:
     num_episodes = row.get("num_episodes")
     if pd.notna(num_episodes) and num_episodes:
         st.markdown(
-            f'<span class="meta-pill>📺  {int(num_episodes)} eps</span>',
+            f'<span class="meta-pill">📺  {int(num_episodes)} eps</span>',
             unsafe_allow_html=True
         )
 
