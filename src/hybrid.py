@@ -73,6 +73,47 @@ def _normalize_scores(df: pd.DataFrame, column:str) -> pd.DataFrame:
     df[column] = scaler.fit_transform(values)
     return df
 
+def _filter_related_titles(
+        results         : pd.DataFrame,
+        selected_titles : list[str],
+        top_n_exempt    : int=3,
+) -> pd.DataFrame:
+    """
+    REMOVE recommendations whose titles contain (or are contained by)
+    any of the user's selected titles, UNLESS they rank in  the top_n_exempt.
+
+    For example, if "Fullmetal Alchemist" is suggested, "Fullmetal Alchemist: Brotherhood"
+    will be filtered out unless it's in the top 3 results.
+
+    Parameters
+    ----------
+    results         : ranked recommendations DataFrame with "name" column
+    selected_titles : list of user-selected title strings
+    top_n_exempt    : top N results are immune to filtering (default, 3)
+
+    Returns
+    -------
+    filtered DataFrame with related titles removed outside the exempt zone
+    """
+
+    selected_lower = [t.strip().lower() for t in selected_titles]
+
+    def is_related(title:str) -> bool:
+        t = title.strip().lower()
+        return any(
+            t in s or s in t
+            for s in selected_lower
+        )
+    
+    #Split into exempt (top 3) and filterable (the rest)
+    exempt = results.iloc[:top_n_exempt]
+    filterable = results.iloc[top_n_exempt:]
+
+    #Filter related titles ONLY from the non-exempt portion
+    filterable = filterable[~filterable["name"].apply(is_related)]
+
+    return pd.concat([exempt, filterable], ignore_index=True)
+
 #Public API
 
 def get_hybrid_recommendations(
@@ -179,13 +220,19 @@ def get_hybrid_recommendations(
         + collab_weight * merged_df["collab_score"]
     )
 
-    #Step 6 - sort by hybrid score & trim to top_n results
+    #Step 6 - sort by hybrid score
     merged_df = (
         merged_df
         .sort_values("hybrid_score", ascending=False)
-        .head(top_n)
         .reset_index(drop=True)
     )
+
+    #Step 6b - filter out any anime with titles related to the input top 5,
+    #UNLESS they made the top 3 recommendations
+    merged_df = _filter_related_titles(merged_df, selected_titles, top_n_exempt=3)
+
+    #Step 6c - trim the hybrid score list down to top_n results
+    merged_df = merged_df.head(top_n).reset_index(drop=True)
 
     #Step 7 - enrich results w/ metadata from anime_df
     metadata_cols = ["anime_id", "name", "genres", "synopsis"]
