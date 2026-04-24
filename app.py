@@ -181,7 +181,7 @@ def render_card(row: pd.Series) -> None:
 
     #Cover Art
     if pd.notna(row.get("cover_image_url")) and row["cover_image_url"]:
-        st.image(row["cover_image_url"], use_column_width=True)
+        st.image(row["cover_image_url"], width=200) #use_column_width=True)
     else:
         st.markdown("*(No cover art available)*")
 
@@ -332,7 +332,7 @@ def main():
     if "results" in st.session_state and st.session_state.results is not None:
         results = st.session_state.results
         selected_titles_display = st.session_state.get("selected_titles", [])
-        
+
         st.markdown(
             '<div class="section-header">💡 Your recommendations</div>',
             unsafe_allow_html=True

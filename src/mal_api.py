@@ -39,7 +39,7 @@ Fields to request from MAL API, per anime
     genres          : genre tags directly from MAL
 """
 
-MAL_FIELDS = "mean,main_picture,genres"
+MAL_FIELDS = "mean,main_picture,genres,num_episodes"
 TIMEOUT_LENGTH = 15
 REQUEST_DELAY = 0.25
 
@@ -88,7 +88,7 @@ def _parse_anime_details(anime_id: int, data:dict) -> dict:
 
     Returns
     ---------
-    dict with keys: anime_id, mal_score, cover_image_url, mal_url
+    dict with keys: anime_id, mal_score, cover_image_url, mal_url, num_episodes
     """
 
     #Prefer the med size cover art, use large if needed, then none if both are missing
@@ -103,7 +103,8 @@ def _parse_anime_details(anime_id: int, data:dict) -> dict:
         "anime_id": anime_id,
         "mal_score": data.get("mean", None),
         "cover_image_url": cover_image_url,
-        "mal_url": f"{MAL_ANIME_URL}/{anime_id}"
+        "mal_url": f"{MAL_ANIME_URL}/{anime_id}",
+        "num_episodes": data.get("num_episodes", None),
     }
 
 # Public API
