@@ -99,11 +99,38 @@ def _filter_related_titles(
     selected_lower = [t.strip().lower() for t in selected_titles]
 
     def is_related(title:str) -> bool:
-        t = title.strip().lower()
-        return any(
-            t in s or s in t
-            for s in selected_lower
-        )
+        #ignore these words when comparing titles - they're too common
+        stopwords = {"the", "a", "an", "of", "in", "to", "and", "or", "is", "at"}
+
+        #ONLY use the root segment of the recommended title (before : or -)
+        root_title = title.strip().lower().split(":")[0].split(" - ")[0].strip()
+        t_tokens = set(root_title.split()) - stopwords
+        t_full = title.strip().lower()
+        
+        for s in selected_lower:
+            #Use only the root segment of selected title as well
+            root_s = s.split(":")[0].split(" - ")[0].strip()
+            s_tokens = set(root_s.split()) - stopwords
+
+            #Check #1: ensure recommended anime title is not IN selected
+            #anime title (or vice-versa)
+            if t_full in s or s in t_full:
+                return True
+
+            #Percentage overlap check using Jaccard similarity!
+            #(intersection / union of the 2 token sets)
+            #If recommended anime shares >=50% of its ROOT title
+            #w/ a top 5 anime, exclude it.
+            if not t_tokens or not s_tokens:
+                continue
+
+            overlap = t_tokens & s_tokens
+            union = t_tokens | s_tokens
+            similarity = len(overlap) / len(union)
+
+            if similarity >= 0.5:
+                return True
+        return False
     
     #Split into exempt (top 3) and filterable (the rest)
     exempt = results.iloc[:top_n_exempt]
@@ -227,13 +254,6 @@ def get_hybrid_recommendations(
         .reset_index(drop=True)
     )
 
-    #Step 6b - filter out any anime with titles related to the input top 5,
-    #UNLESS they made the top 3 recommendations
-    merged_df = _filter_related_titles(merged_df, selected_titles, top_n_exempt=3)
-
-    #Step 6c - trim the hybrid score list down to top_n results
-    merged_df = merged_df.head(top_n).reset_index(drop=True)
-
     #Step 7 - enrich results w/ metadata from anime_df
     metadata_cols = ["anime_id", "name", "genres", "synopsis"]
     available_cols = [x for x in metadata_cols if x in anime_df.columns]
@@ -245,6 +265,13 @@ def get_hybrid_recommendations(
         on="anime_id",
         how="left"
     )
+
+    #Step 7b - filter out any anime with titles related to the input top 5,
+    #UNLESS they made the top 3 recommendations
+    results = _filter_related_titles(results, selected_titles, top_n_exempt=3)
+
+    #Step 7c - trim the hybrid score list down to top_n results
+    results = results.head(top_n).reset_index(drop=True)
 
     #Set the final column order
     col_order = [
