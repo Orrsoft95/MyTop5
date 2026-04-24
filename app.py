@@ -181,7 +181,7 @@ def render_card(row: pd.Series) -> None:
 
     #Cover Art
     if pd.notna(row.get("cover_image_url")) and row["cover_image_url"]:
-        st.image(row["cover_image_url"], use_container_width=True)
+        st.image(row["cover_image_url"], use_column_width=True)
     else:
         st.markdown("*(No cover art available)*")
 
@@ -292,7 +292,7 @@ def main():
         "✨ Get Recommendations",
         disabled=not ready,
         use_container_width=True,
-        type="primary"
+        type="primary",
     ):
         with st.status("Generating your recommendations...", expanded=True) as status:
             try:
@@ -315,26 +315,10 @@ def main():
                 
                 status.update(label="Done!", state="complete",expanded=False)
 
-                #Step 3 - display results!
-                st.markdown(
-                    '<div class="section-header">💡 Your recommendations</div>',
-                    unsafe_allow_html=True
-                )
+                # Store in session state so results persist after rerun
+                st.session_state.results = results
+                st.session_state.selected_titles = selected_titles
 
-                st.caption(
-                    f"Based on: {', '.join(selected_titles)}"
-                )
-
-                #Create our 2-column result grid
-                rows = [results.iloc[i:i+2] for i in range(0, len(results), 2)]
-                for row_pair in rows:
-                    cols = st.columns(2, gap="medium")
-                    for col, (_, anime_row) in zip(cols, row_pair.iterrows()):
-                        with col:
-                            with st.container:
-                                st.markdown('<div class="anime-card">', unsafe_allow_html=True)
-                                render_card(anime_row)
-                                st.markdown('</div>',unsafe_allow_html=True)
 
             except ValueError as e:
                 status.update(label="Something went wrong.", state="error", expanded=False)
@@ -343,6 +327,31 @@ def main():
                 status.update(label="An unexpected error occurred.", state="error", expanded=False)
                 st.error(f"An unexpected error occurred: {e}")
                 raise
+
+    #Step 3 - display results (if they exist in session state)!
+    if "results" in st.session_state and st.session_state.results is not None:
+        results = st.session_state.results
+        selected_titles_display = st.session_state.get("selected_titles", [])
+        
+        st.markdown(
+            '<div class="section-header">💡 Your recommendations</div>',
+            unsafe_allow_html=True
+        )
+
+        st.caption(
+            f"Based on: {', '.join(selected_titles)}"
+        )
+
+        #Create our 2-column result grid
+        rows = [results.iloc[i:i+2] for i in range(0, len(results), 2)]
+        for row_pair in rows:
+            cols = st.columns(2, gap="medium")
+            for col, (_, anime_row) in zip(cols, row_pair.iterrows()):
+                with col:
+                    with st.container():
+                        st.markdown('<div class="anime-card">', unsafe_allow_html=True)
+                        render_card(anime_row)
+                        st.markdown('</div>',unsafe_allow_html=True)
     
     #Footer
     st.divider()
