@@ -37,7 +37,7 @@ from src.mal_api import enrich_recommendations
 #Page config
 st.set_page_config(
     page_title="MyTop5 - Anime Recommender",
-    page_icon="🏯",
+    page_icon="🎌",
     layout="wide",
     initial_sidebar_state="collapsed"
 
@@ -251,7 +251,7 @@ def main():
     st.session_state.anime_titles = anime_titles
 
     #Header
-    st.markdown("# 🏯 MyTop5")
+    st.markdown("# 🎌 MyTop5")
     st.markdown(
         "Select your **top 5 favorite anime** and receive 10 personalized "
         "recommendations, powered by a hybrid content + collaborative filtering engine.\n"
