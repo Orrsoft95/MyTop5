@@ -173,3 +173,71 @@ def search_anime(query: str) -> list[str]:
         title for title in st.session_state.anime_titles
         if query_lower in title.lower()
     ][:10]
+
+def render_card(row: pd.Series) -> None:
+    """
+    Render a single recommendation result card using HTML/CSS.
+    Displays cover art, title, MAL score, genres, synopsis, and hybrid score.
+    """
+
+    #Cover Art
+    if pd.notna(row.get("cover_image_url")) and row["cover_image_url"]:
+        st.image(row["cover_image_url"], use_container_width=True)
+    else:
+        st.markdown("*(No cover art available)*")
+
+    #TItle + MAL link
+    mal_url = row.get("mal_url", "#")
+    st.markdown(
+        f'<div class="anime-title">'
+        f'<a class="mal-link" href="{mal_url}" target="_blank">'
+        f'{row["name"]}</a></div>',
+        unsafe_allow_html=True
+    )
+
+    #MAL score badge
+    mal_score = row.get("mal_score")
+    if pd.notna(mal_score) and mal_score:
+        st.markdown(
+            f'<span class="score-badge">⭐ {mal_score:.2f} /10</span>',
+            unsafe_allow_html=True
+        )
+    
+    #Episode count
+    num_episodes = row.get("num_episodes")
+    if pd.notna(num_episodes) and num_episodes:
+        st.markdown(
+            f'<span class="meta-pill>📺  {int(num_episodes)} eps</span>',
+            unsafe_allow_html=True
+        )
+
+    #Genres
+    genres = row.get("genres")
+    if pd.notna("genres") and genres:
+        #MAL API returns genres as list of dicts, but
+        #Is returned from our csv as a plain string - need to handle both cases
+        if isinstance(genres, list):
+            genre_names = sorted([g["name"] for g in genres if "name" in g])
+        else:
+            genre_names = [g.strip() for g in str(genres).split(",")]
+        pills = "".join(
+            f'<span class="meta-pill">{g}</span>' for g in genre_names[:5]
+        )
+        st.markdown(pills, unsafe_allow_html=True)
+
+    #Synopsis - truncate to <=200 chars!
+    synopsis = row.get("synopsis")
+    if pd.notna(synopsis) and synopsis:
+        truncated = str(synopsis)[:200] + "..." if len(str(synopsis)) > 200 else str(synopsis)
+        st.markdown(
+            f'<div class="synopsis-text">{truncated}</div>',
+            unsafe_allow_html=True
+        )
+
+    #Hybrid score - progress bar
+    hybrid_score = row.get("hybrid_score", 0)
+    st.markdown(
+        f'<div class="score-label">Match score: {hybrid_score:.0%}</div>',
+        unsafe_allow_html=True
+    )
+    st.progress(float(hybrid_score))
