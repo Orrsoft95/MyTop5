@@ -23,10 +23,6 @@ Secrets required (.streamlit/secrets.toml)
     repo_id = "hf_username/MyTop5"
 """
 
-#DEBUGGING LINES - REMOVE LATER!
-import os
-st.write(dict(os.environ))
-
 import pickle
 import tempfile
 
@@ -38,6 +34,10 @@ import joblib
 
 from src.hybrid import get_hybrid_recommendations
 from src.mal_api import enrich_recommendations
+
+#DEBUGGING LINES - REMOVE LATER!
+import os
+st.write(dict(os.environ))
 
 #Page config
 st.set_page_config(
