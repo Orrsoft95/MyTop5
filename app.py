@@ -122,6 +122,24 @@ st.markdown("""
         text-decoration: none;
     }
     a.mal-link:hover { text-decoration: underline; }
+            
+    /* Style header button to look like a TITLE */
+    div[data-testid="stButton"][id="header_btn"] button {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #e8eaf6;
+        cursor: pointer;
+        box-shadow: none;
+    }
+    div[data-testid="stButton"][id="header_btn"] button:hover {
+        color: #7986cb;
+        background: none;
+        border: none;
+        box-shadow: none;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -276,6 +294,12 @@ def render_card(row: pd.Series) -> None:
     )
     st.progress(float(hybrid_score))
 
+def reset_app():
+    """
+    Resets the app's page whenever user clicks the header.
+    """
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
 
 ### MAIN APP ###
 def main():
@@ -286,7 +310,10 @@ def main():
     st.session_state.anime_titles = anime_titles
 
     #Header
-    st.markdown("# 🎌 MyTop5")
+    if st.button("# 🎌 MyTop5", key="header_btn", help="Click to reset page!"):
+        reset_app()
+        st.rerun()
+
     st.markdown(
         "Select your **top 5 favorite anime** and receive 10 personalized "
         "recommendations, powered by a hybrid content + collaborative filtering engine.\n"

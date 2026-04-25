@@ -14,7 +14,7 @@ pinned: false
 A hybrid anime recommendation system built as a Data Analytics Capstone project. Users select their top 5 favorite anime and receive 
 10 personalized recommendations, powered by a combnination of content-based filtering & collaborative filtering.
 
-**Live app:** [mytop5.streamlit.app](https://mytop5.streamlit.app)
+**Live app:** [huggingface.co/spaces/Orrsoft95/MyTop5](https://huggingface.co/spaces/Orrsoft95/MyTop5)
 
 ----
 
