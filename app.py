@@ -295,8 +295,12 @@ def reset_app():
     """
     Resets the app's page whenever user clicks the button near header.
     """
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    st.session_state.results = None
+    st.session_state.selected_titles = []
+    
+    #EXPLICITLY reset each selectbox by key
+    for i in range(1, 6):
+        st.session_state[f"select_{i}"] = 0 #0 = the first option, which is an empty string.
 
 ### MAIN APP ###
 def main():
