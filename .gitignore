@@ -28,3 +28,6 @@ build/
 .DS_Store
 Thumbs.db
 
+# Notebook outputs
+notebooks/*.png
+
