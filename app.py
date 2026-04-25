@@ -300,7 +300,7 @@ def reset_app():
     
     #EXPLICITLY reset each selectbox by key
     for i in range(1, 6):
-        st.session_state[f"select_{i}"] = 0 #0 = the first option, which is an empty string.
+        st.session_state[f"select_{i}"] = "" #Set the selectbox value to "".
 
 ### MAIN APP ###
 def main():
