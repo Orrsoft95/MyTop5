@@ -23,6 +23,10 @@ Secrets required (.streamlit/secrets.toml)
     repo_id = "hf_username/MyTop5"
 """
 
+#DEBUGGING LINES - REMOVE LATER!
+import os
+st.write(dict(os.environ))
+
 import pickle
 import tempfile
 
