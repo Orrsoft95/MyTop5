@@ -6,6 +6,16 @@ A hybrid anime recommendation system built as a Data Analytics Capstone project.
 
 **Live app:** [mytop5.streamlit.app](https://mytop5.streamlit.app)
 
+---
+title: MyTop5
+page icon: 🎌
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 8501
+pinned: false
+---
+
 ----
 
 ## How It Works
