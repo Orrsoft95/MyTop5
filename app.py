@@ -35,10 +35,6 @@ import joblib
 from src.hybrid import get_hybrid_recommendations
 from src.mal_api import enrich_recommendations
 
-#DEBUGGING LINES - REMOVE LATER!
-import os
-st.write(dict(os.environ))
-
 #Page config
 st.set_page_config(
     page_title="MyTop5 - Anime Recommender",
