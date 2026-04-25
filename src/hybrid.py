@@ -22,7 +22,8 @@ Public API
         svd_model           : Surprise.SVD,
         top_n               : int = 10,
         content_weight      : float = 0.6,
-        collab_weight       : float = 0.4
+        collab_weight       : float = 0.4,
+        exclude_ids         : set = None
     ) -> pd.DataFrame
 """
 
@@ -34,6 +35,8 @@ from surprise import SVD
 
 from src.content_filter import get_content_recommendations
 from src.collab_filter import get_collab_recommendations
+
+from src.mal_api import get_related_anime_ids
 
 #Set default weights
 CONTENT_WEIGHT = 0.55
@@ -76,20 +79,20 @@ def _normalize_scores(df: pd.DataFrame, column:str) -> pd.DataFrame:
 def _filter_related_titles(
         results         : pd.DataFrame,
         selected_titles : list[str],
-        top_n_exempt    : int=3,
+        top_n_exempt    : int=1,
 ) -> pd.DataFrame:
     """
     REMOVE recommendations whose titles contain (or are contained by)
     any of the user's selected titles, UNLESS they rank in  the top_n_exempt.
 
     For example, if "Fullmetal Alchemist" is suggested, "Fullmetal Alchemist: Brotherhood"
-    will be filtered out unless it's in the top 3 results.
+    will be filtered out unless it's in the top 1 results.
 
     Parameters
     ----------
     results         : ranked recommendations DataFrame with "name" column
     selected_titles : list of user-selected title strings
-    top_n_exempt    : top N results are immune to filtering (default, 3)
+    top_n_exempt    : top N results are immune to filtering (default, 1)
 
     Returns
     -------
@@ -141,6 +144,64 @@ def _filter_related_titles(
 
     return pd.concat([exempt, filterable], ignore_index=True)
 
+def _greedy_deduplicate(
+        results         : pd.DataFrame,
+        selected_titles : list[str],
+        anime_df        : pd.DataFrame,
+        client_id       : str,
+        exclude_ids     : set = None,
+        top_n           : int = 10,
+) -> pd.DataFrame:
+    """
+    Greedily re-rank results so that NO recommendation is name-similar
+    to any other OR MAL-related to any other already-selected recommendation.
+    """
+    if exclude_ids is None:
+        exclude_ids = set()
+    
+    running_exclude_ids = set(exclude_ids)
+    running_titles = list(selected_titles)
+    final = []
+
+    for _, row in results.iterrows():
+        candidate_id = int(row["anime_id"])
+        candidate_title = row["name"]
+
+        #Check 1 - MAL-related exclusion set
+        if candidate_id in running_exclude_ids:
+            continue
+
+        #Check 2 - name similarity against all CURRENTLY selected
+        #titles.
+        candidate_df = pd.DataFrame([row])
+        filtered = _filter_related_titles(
+            candidate_df,
+            running_titles,
+            top_n_exempt=0 #Make NO exemptions here
+        )
+
+        if filtered.empty:
+            continue
+
+        #Both checks are passed at this point - add to final list!
+        final.append(row)
+        running_exclude_ids.add(candidate_id)
+        running_titles.append(candidate_title)
+
+        #Fetch MAL-related IDs for this recommendation & add to
+        #running_exlcude_ids so future candidates are checked against it!
+        related = get_related_anime_ids(
+            selected_titles=[candidate_title],
+            anime_df=anime_df,
+            client_id=client_id
+        )
+        running_exclude_ids.update(related)
+
+        if len(final) == top_n:
+            break
+
+    return pd.DataFrame(final).reset_index(drop=True)
+
 #Public API
 
 def get_hybrid_recommendations(
@@ -151,7 +212,9 @@ def get_hybrid_recommendations(
     svd_model           : SVD,
     top_n               : int = 10,
     content_weight      : float = CONTENT_WEIGHT,
-    collab_weight       : float = COLLAB_WEIGHT
+    collab_weight       : float = COLLAB_WEIGHT,
+    exclude_ids         : set = None,
+    client_id           : str = None,
 ) -> pd.DataFrame:
     """
     Generate HYBRID anime recommendations by fusing content-based and collaborative filtering scores.
@@ -175,6 +238,7 @@ def get_hybrid_recommendations(
     top_n           : number of final recommendations to return (default 10)
     content_weight  : weight applied to normalized content score (default 0.6)
     collab_weight   : weight applied to normalized collab score (default 0.4)
+    client_id       : MAL API client ID from st.secrets
 
     Returns
     -------
@@ -266,12 +330,23 @@ def get_hybrid_recommendations(
         how="left"
     )
 
-    #Step 7b - filter out any anime with titles related to the input top 5,
-    #UNLESS they made the top 3 recommendations
-    results = _filter_related_titles(results, selected_titles, top_n_exempt=3)
+    #Step 7b - exclude any MAL-defined related titles
+    if exclude_ids:
+        results = results[~results["anime_id"].isin(exclude_ids)]
 
-    #Step 7c - trim the hybrid score list down to top_n results
-    results = results.head(top_n).reset_index(drop=True)
+    #Step 7c - Exclude any name-similar titles not caught by the MAL API
+    results = _filter_related_titles(results, selected_titles, top_n_exempt=1)
+
+    #Step 7d - Use greedy deduplication to remove recommendations that are related
+    #to one another, and generate our final top 10 list!
+    results = _greedy_deduplicate(
+        results=results,
+        selected_titles=selected_titles,
+        anime_df=anime_df,
+        client_id=client_id,
+        exclude_ids=exclude_ids,
+        top_n=top_n
+    )
 
     #Set the final column order
     col_order = [

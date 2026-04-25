@@ -38,9 +38,10 @@ Fields to request from MAL API, per anime
     main_picture    : cover art (med and large URLs)
     genres          : genre tags directly from MAL
     num_episodes    : number of episodes in the series
+    related_anime   : titles of all anime related to input anime (ex: Dragonball > Dragonball Z)
 """
 
-MAL_FIELDS = "mean,main_picture,genres,num_episodes"
+MAL_FIELDS = "mean,main_picture,genres,num_episodes,related_anime"
 TIMEOUT_LENGTH = 15
 REQUEST_DELAY = 0.25
 
@@ -109,6 +110,57 @@ def _parse_anime_details(anime_id: int, data:dict) -> dict:
     }
 
 # Public API
+
+def get_related_anime_ids(
+        selected_titles: list[str],
+        anime_df: pd.DataFrame,
+        client_id: str,
+) -> set:
+    """
+    Fetch the MAL-defined related anime IDs for EACH
+    of the user's selected titles. Returns a set of anime_ids
+    to exclude from results.
+
+    Related anime includes sequels, prequels, alt. versions,
+    OVAs, spin-offs, and summary films as defined by MAL.    
+    """
+
+    #Resolve titles to their anime_ids
+    title_to_id = {
+        title.strip().lower(): anime_id
+        for title, anime_id in zip(anime_df["name"], anime_df["anime_id"])
+    }
+    related_ids = set()
+
+    for title in selected_titles:
+        anime_id = title_to_id.get(title.strip().lower())
+        if not anime_id:
+            continue
+
+        data = _get_anime_details(int(anime_id), client_id)
+        if not data:
+            continue
+
+        for related in data.get("related_anime", []):
+            related_node = related.get("node", {})
+            related_id = related_node.get("id")
+            relation_type = related.get("relation_type", "")
+
+            #Only exclude DIRECTLY related titles, not loosely-related ones
+            if relation_type in (
+                "sequel",
+                "prequel",
+                "alternative_version",
+                "alternative_setting",
+                "side_story",
+                "parent_story",
+                "summary",
+                "full_story",
+                "spin_off",
+            ):
+                if related_id:
+                    related_ids.add(related_id)
+    return related_ids
 
 def enrich_recommendations(
         results_df: pd.DataFrame,

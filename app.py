@@ -33,7 +33,7 @@ from huggingface_hub import hf_hub_download
 import joblib
 
 from src.hybrid import get_hybrid_recommendations
-from src.mal_api import enrich_recommendations
+from src.mal_api import enrich_recommendations, get_related_anime_ids
 
 #Page config
 st.set_page_config(
@@ -363,6 +363,28 @@ def main():
     ):
         with st.status("Generating your recommendations...", expanded=True) as status:
             try:
+
+                #Step 0 - Fetch related anime IDs to EXCLUDE
+                status.update(label="Checking for related titles to exclude...")
+                client_id = st.secrets["mal"]["client_id"]
+                exclude_ids = get_related_anime_ids(
+                    selected_titles=selected_titles,
+                    anime_df=anime_df,
+                    client_id=client_id
+                )
+
+                #Also ensure to exlcude the input titles' own IDs
+                title_to_id = {
+                    t.strip().lower(): aid
+                    for t, aid in zip(anime_df["name"], anime_df["anime_id"])
+                }
+                for t in selected_titles:
+                    aid = title_to_id.get(t.strip().lower())
+                    if aid:
+                        exclude_ids.add(int(aid))
+
+                
+
                 #Step 1 - hybrid recommendations
                 status.update(label="Running hybrid recommendation engine...")
                 results = get_hybrid_recommendations(
@@ -371,12 +393,13 @@ def main():
                     feature_matrix=feature_matrix,
                     anime_index_map=anime_index_map,
                     svd_model=svd_model,
-                    top_n=10
+                    top_n=10,
+                    exclude_ids=exclude_ids,
+                    client_id=client_id
                 )
                 
                 #Step 2 - enrich w/ MAL API data
                 status.update(label="Fetching cover art & scores from MyAnimeList...")
-                client_id = st.secrets["mal"]["client_id"]
                 
                 results = enrich_recommendations(results, client_id)
                 
