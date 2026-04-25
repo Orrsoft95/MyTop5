@@ -322,7 +322,7 @@ def main():
     st.markdown(
         "Select your **top 5 favorite anime** and receive 10 personalized "
         "recommendations, powered by a hybrid content + collaborative filtering engine.\n"
-        "**Note** - anime rekeased after 2023 may not be present in data set."
+        "**Note** - anime released after 2023 may not be present in data set."
     )
     st.divider()
 
