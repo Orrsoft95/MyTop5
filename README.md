@@ -1,3 +1,13 @@
+---
+title: MyTop5
+emoji: 🎌
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_file: app.py
+app_port: 8501
+pinned: false
+---
 
 # **🎌MyTop5 - Anime Recommendation Engine**
 
@@ -5,16 +15,6 @@ A hybrid anime recommendation system built as a Data Analytics Capstone project.
 10 personalized recommendations, powered by a combnination of content-based filtering & collaborative filtering.
 
 **Live app:** [mytop5.streamlit.app](https://mytop5.streamlit.app)
-
----
-title: MyTop5
-page icon: 🎌
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-app_port: 8501
-pinned: false
----
 
 ----
 
