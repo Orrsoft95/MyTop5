@@ -123,23 +123,20 @@ st.markdown("""
     }
     a.mal-link:hover { text-decoration: underline; }
             
-    /* Style header button to look like a TITLE */
-    div[data-testid="stButton"][id="header_btn"] button {
-        background: none;
-        border: none;
-        padding: 0;
-        font-size: 2rem;
-        font-weight: 700;
-        color: #e8eaf6;
-        cursor: pointer;
-        box-shadow: none;
-    }
-    div[data-testid="stButton"][id="header_btn"] button:hover {
-        color: #7986cb;
-        background: none;
-        border: none;
-        box-shadow: none;
-    }
+/* Reset button styling */
+div[data-testid="stButton"]:has(button[kind="secondary"]) button {
+    background: none;
+    border: 1px solid #2e3250;
+    color: #7986cb;
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-top: 1rem;
+}
+div[data-testid="stButton"]:has(button[kind="secondary"]) button:hover {
+    background: #2e3250;
+    border: 1px solid #7986cb;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -296,7 +293,7 @@ def render_card(row: pd.Series) -> None:
 
 def reset_app():
     """
-    Resets the app's page whenever user clicks the header.
+    Resets the app's page whenever user clicks the button near header.
     """
     for key in list(st.session_state.keys()):
         del st.session_state[key]
@@ -310,9 +307,13 @@ def main():
     st.session_state.anime_titles = anime_titles
 
     #Header
-    if st.button("# 🎌 MyTop5", key="header_btn", help="Click to reset page!"):
-        reset_app()
-        st.rerun()
+    col_title, col_reset = st.columns([8, 1])
+    with col_title:
+        st.markdown("# 🎌 MyTop5")
+    with col_reset:
+        if st.button("↺ Reset", key="header_btn", help="Click to reset the app!"):
+            reset_app()
+            st.rerun()
 
     st.markdown(
         "Select your **top 5 favorite anime** and receive 10 personalized "
