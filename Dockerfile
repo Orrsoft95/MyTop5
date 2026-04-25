@@ -12,4 +12,6 @@ COPY . .
 
 RUN chmod +x /app/start.sh
 
+EXPOSE 7860
+
 CMD ["/bin/bash", "/app/start.sh"]
